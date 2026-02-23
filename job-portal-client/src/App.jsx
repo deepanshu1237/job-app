@@ -4,12 +4,11 @@ import './App.css'
 import Navbar from './components/Navbar'
 
 function App() {
-
   return (
-    <>
-    <Navbar/>
-    <Outlet/>
-    </>
+    <div className='min-h-screen w-full'>
+      <Navbar/>
+      <Outlet/>
+    </div>
   )
 }
 

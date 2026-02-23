@@ -1,20 +1,14 @@
 import React from 'react';
-import { signOut } from "firebase/auth";
 import { useNavigate } from 'react-router-dom';
-import { getAuth } from "firebase/auth";
 
 const LogoutButton = () => {
-  const auth = getAuth();
   const navigate = useNavigate();
 
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      navigate('/login'); // Redirect to login page after logout
-    } catch (error) {
-      console.error('Logout error:', error);
-      // Handle logout error (optional)
-    }
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('companyEmail');
+    localStorage.removeItem('userEmail');
+    navigate('/login');
   };
 
   return (

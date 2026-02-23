@@ -2,8 +2,7 @@ import React, { useState } from 'react'
 import { Link, NavLink } from 'react-router-dom';
 import {FaBarsStaggered, FaXmark} from "react-icons/fa6";
 
-import LogoutButton from './LogoutButton'; // Import LogoutButton
-// Import LogoutButton
+import LogoutButton from './LogoutButton';
 
 const Navbar = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -11,14 +10,28 @@ const Navbar = () => {
         setIsMenuOpen(!isMenuOpen)
     }
 
-    const navItems = [
+    const isCompany = localStorage.getItem('companyEmail');
+    const isSeeker = localStorage.getItem('userEmail');
+    
+    let navItems = [
         {path: "/", title: "Start a Search"},
-        {path: "/my-job", title: "My Jobs"},
         {path: "/salary", title: "Salary Estimate"},
-        {path: "/post-job", title: "Post a Job"},
-    ]
+    ];
+    
+    // Show different items for companies and seekers
+    if (isCompany) {
+        navItems.push({path: "/post-job", title: "Post a Job"});
+        navItems.push({path: "/my-job", title: "My Jobs"});
+        navItems.push({path: "/applicants", title: "Applicants"});
+    } else if (isSeeker) {
+        navItems.push({path: "/my-job", title: "My Job Applications"});
+        navItems.push({path: "/applications", title: "Applications"});
+        navItems.push({path: "/saved-jobs", title: "Saved Jobs"});
+    } else {
+        navItems.push({path: "/my-job", title: "My Jobs"});
+    }
   return (
-    <header className='max-w-screen container mx-auto xl:px-24 px-4'>
+    <header className='max-w-screen container mx-auto xl:px-24 px-4 bg-white'>
         <nav className="flex justify-between items-center py-6">
             <a href="/" className="flex items-center gap-2 text-2xl text-black">
                 <svg className="" 
@@ -47,7 +60,7 @@ const Navbar = () => {
                         <li key={path} className="text-base text-primary">
                             <NavLink
                             to={path}
-                    className={({ isActive}) => isActive ? "active": "" }
+                    className={({ isActive}) => isActive ? "text-blue font-semibold border-b-2 border-blue pb-1" : "hover:text-blue transition" }
                   >
                     {title}
                             </NavLink>
@@ -57,10 +70,29 @@ const Navbar = () => {
             </ul>
 
             {/* SIGNUP AND LOGIN BUTTON */}
-            <div className="text-base text-primary font-medium space-x-5 hidden lg:block">
-                <Link to = "/login" className='py-2 px-5 border rounded'>Login</Link>
-                <Link to = "/sign-up" className='py-2 px-5 border rounded bg-blue text-white'>Sign up</Link>
-                {/* <Link to = "/LogoutButton" className='py-2 px-5 border rounded bg-blue text-white'>Logout</Link> */}
+            <div className="text-base text-primary font-medium space-x-3 hidden lg:flex items-center">
+                {isCompany || isSeeker ? (
+                    <>
+                        {isCompany ? (
+                            <Link to="/company-profile" className='px-3 py-2 rounded hover:bg-gray-100 transition' title="Company Profile">
+                                🏢
+                            </Link>
+                        ) : (
+                            <Link to="/profile" className='px-3 py-2 rounded hover:bg-gray-100 transition' title="My Profile">
+                                👤
+                            </Link>
+                        )}
+                        <span className="px-4 py-2 rounded text-gray-700 font-semibold">
+                            {isCompany ? 'Company' : 'Seeker'}
+                        </span>
+                        <LogoutButton />
+                    </>
+                ) : (
+                    <>
+                        <Link to="/login" className='py-2 px-5 border rounded hover:bg-gray-100 transition'>Login</Link>
+                        <Link to="/sign-up" className='py-2 px-5 border rounded bg-blue text-white hover:opacity-90 transition'>Sign up</Link>
+                    </>
+                )}
             </div>
 
             {/* MOBILE MENU */}
@@ -88,8 +120,19 @@ const Navbar = () => {
                     ))
                 }
 
-<li className="text-white py-1"><Link to = "/login">Login</Link></li>
-<li className="text-white py-1"><Link to = "/login">Logout</Link></li>
+                {isCompany || isSeeker ? (
+                    <>
+                        <li className="text-white py-2 border-t border-gray-600 mt-2">
+                            <span className="font-semibold">{isCompany ? 'Company' : 'Seeker'}</span>
+                        </li>
+                        <li className="text-white py-1"><LogoutButton /></li>
+                    </>
+                ) : (
+                    <>
+                        <li className="text-white py-1"><Link to="/login">Login</Link></li>
+                        <li className="text-white py-1"><Link to="/sign-up">Sign up</Link></li>
+                    </>
+                )}
             </ul>
         </div>
     </header>

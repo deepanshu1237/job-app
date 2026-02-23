@@ -12,7 +12,7 @@ const itemsPerPage = 4;
 
     useEffect(() => {
         setIsLoading(true)
-        fetch(`https://mern-job-portal-website.vercel.app/myJobs/lakshay22dhoundiyal@gmail.com`).then(res => res.json()).then(data => {
+        fetch(`http://localhost:3000/myJobs/lakshay22dhoundiyal@gmail.com`).then(res => res.json()).then(data => {
           setJobs(data);
           setIsLoading(false);
         });
@@ -49,11 +49,19 @@ const itemsPerPage = 4;
       fetch(`http://localhost:3000/job/${id}`, {
        method: "DELETE"
       })
-      .then((res) => res.json)
+      .then((res) => res.json())
       .then((data) => {
-        if(data.acknowledged === true){
-          alert("Job Deleted Sucessfully!");
+        if (data.deletedCount && data.deletedCount > 0) {
+          // remove deleted job from local state
+          setJobs((prev) => prev.filter((job) => job._id !== id));
+          alert("Job Deleted Successfully!");
+        } else {
+          alert("Failed to delete job");
         }
+      })
+      .catch((err) => {
+        console.error('Delete error:', err);
+        alert('Error deleting job');
       });
     };
 

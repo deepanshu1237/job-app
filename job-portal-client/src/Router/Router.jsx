@@ -7,8 +7,18 @@ import MyJobs from "../assets/Pages/MyJobs";
 import SalaryPage from "../assets/Pages/SalaryPage";
 import UpdateJob from "../assets/Pages/UpdateJob";
 import Login from "../components/Login";
+import CompanyLogin from "../components/CompanyLogin";
+import SeekerLogin from "../components/SeekerLogin";
 import JobDetails from "../assets/Pages/JobDetails";
 import Signup from "../components/Signup";
+import CompanySignup from "../components/CompanySignup";
+import SeekerSignup from "../components/SeekerSignup";
+import Applications from "../assets/Pages/Applications";
+import SavedJobs from "../assets/Pages/SavedJobs";
+import Applicants from "../assets/Pages/Applicants";
+import UserProfile from "../assets/Pages/UserProfile";
+import CompanyProfile from "../assets/Pages/CompanyProfile";
+import AdminDashboard from "../assets/Pages/AdminDashboard";
 
 const router = createBrowserRouter([
     {
@@ -32,11 +42,39 @@ const router = createBrowserRouter([
         {
           path: "/edit-job/:id",
           element: <UpdateJob/>,
-          loader: ({params}) => fetch(`https://mern-job-portal-website.vercel.app/all-jobs/${params.id}`)
+          loader: ({params}) => fetch(`http://localhost:3000/all-jobs/${params.id}`)
         },
         {
           path: "/job/:id",
           element: <JobDetails/>
+        },
+        {
+          path: "/applications",
+          element: <Applications/>
+        },
+        {
+          path: "/saved-jobs",
+          element: <SavedJobs/>
+        },
+        {
+          path: "/applicants",
+          element: <Applicants/>
+        },
+        {
+          path: "/profile",
+          element: <UserProfile/>
+        },
+        {
+          path: "/company-profile",
+          element: <CompanyProfile/>
+        },
+        {
+          path: "/admin",
+          element: <AdminDashboard/>
+        },
+        {
+          path: "/about",
+          element: <About/>
         }
 
     ],
@@ -47,8 +85,25 @@ const router = createBrowserRouter([
       element: <Login/>
     },
     {
+      path: "/login/company",
+      element: <CompanyLogin/>
+    },
+    {
+      path: "/login/seeker",
+      element: <SeekerLogin/>
+    },
+    {
       path: "/sign-up",
       element: <Signup/>
+    }
+    ,
+    {
+      path: "/sign-up/company",
+      element: <CompanySignup/>
+    },
+    {
+      path: "/sign-up/seeker",
+      element: <SeekerSignup/>
     }
 
   ]);

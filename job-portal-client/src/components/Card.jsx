@@ -6,25 +6,44 @@ const Card = ({data}) => {
 const {_id, companyName, jobTitle, companyLogo, minPrice, maxPrice, salaryType, jobLocation, employmentType, postingDate, description} = data;
 
   return (
-   
-  <section className="card">
-    <Link to={`https://mern-job-portal-website.vercel.app/job/${_id}`} className='flex gap-4 flex-col sm:flex-row items-start'>
-    <img src={companyLogo} alt="" />
-    <div className="">
-      <h4 className="text-primary mb-1">{companyName}</h4>
-      <h3 className="text-lg font-semibold mb-2">{jobTitle}</h3>
-
-      <div className="text-primary/70 text-base flex flex-wrap gap-2 mb-2">
-        <span className="flex items-center gap-2"><FiMapPin/> {jobLocation} </span>
-        <span className="flex items-center gap-2"><FiClock/> {employmentType} </span>
-        <span className="flex items-center gap-2"><FiDollarSign/> {minPrice}-{maxPrice} </span>
-        <span className="flex items-center gap-2"><FiCalendar/> {postingDate} </span>
+   <Link to={`/job/${_id}`} className='no-underline'>
+    <section className="bg-white p-6 rounded-lg shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-gray-200 h-full">
+      <div className="flex gap-4 mb-4">
+        {companyLogo && (
+          <img src={companyLogo} alt={companyName} className="w-16 h-16 object-contain" />
+        )}
+        <div className="flex-grow">
+          <p className="text-sm text-blue font-semibold uppercase">{companyName}</p>
+          <h3 className="text-lg font-bold text-gray-800 hover:text-blue transition">{jobTitle}</h3>
+        </div>
       </div>
 
-      <p className="text-base text-primary/70"> {description} </p>
-    </div>
-    </Link>
-  </section>
+      <div className="space-y-3 mb-4">
+        <div className="flex flex-wrap gap-3">
+          <span className="flex items-center gap-1 text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
+            <FiMapPin className="text-blue" /> {jobLocation}
+          </span>
+          <span className="flex items-center gap-1 text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
+            <FiClock className="text-blue" /> {employmentType}
+          </span>
+          <span className="flex items-center gap-1 text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
+            <FiDollarSign className="text-blue" /> {minPrice}-{maxPrice}
+          </span>
+          <span className="flex items-center gap-1 text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
+            <FiCalendar className="text-blue" /> {postingDate}
+          </span>
+        </div>
+      </div>
+
+      <p className="text-sm text-gray-600 line-clamp-3 mb-4">{description}</p>
+
+      <div className="pt-3 border-t border-gray-200">
+        <button className="text-blue font-semibold hover:text-white hover:bg-blue px-4 py-2 rounded transition">
+          View Details →
+        </button>
+      </div>
+    </section>
+   </Link>
   )
 }
 
