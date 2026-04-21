@@ -4,7 +4,7 @@ import {FaBarsStaggered, FaXmark} from "react-icons/fa6";
 
 import LogoutButton from './LogoutButton';
 
-const Navbar = () => {
+const Navbar = ({ theme = 'light', onToggleTheme }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const handleMenuToggler = () => {
         setIsMenuOpen(!isMenuOpen)
@@ -24,16 +24,21 @@ const Navbar = () => {
         navItems.push({path: "/my-job", title: "My Jobs"});
         navItems.push({path: "/applicants", title: "Applicants"});
     } else if (isSeeker) {
-        navItems.push({path: "/my-job", title: "My Job Applications"});
-        navItems.push({path: "/applications", title: "Applications"});
+        navItems.push({path: "/applications", title: "My Job Applications"});
         navItems.push({path: "/saved-jobs", title: "Saved Jobs"});
     } else {
         navItems.push({path: "/my-job", title: "My Jobs"});
     }
+    const roleLabel = isCompany ? 'Company' : isSeeker ? 'Seeker' : null;
+    const switchPath = isCompany ? '/login/seeker' : '/login/company';
+    const switchLabel = isCompany ? 'Switch to Seeker' : 'Switch to Company';
+    const profilePath = isCompany ? '/company-profile' : '/profile';
+    const profileLabel = isCompany ? 'Company Profile' : 'My Profile';
+
   return (
     <header className='max-w-screen container mx-auto xl:px-24 px-4 bg-white'>
         <nav className="flex justify-between items-center py-6">
-            <a href="/" className="flex items-center gap-2 text-2xl text-black">
+            <Link to="/" className="flex items-center gap-2 text-2xl text-black">
                 <svg className="" 
                 width="29" 
                 height="30" 
@@ -51,7 +56,7 @@ const Navbar = () => {
                     <circle cx = "16.9857" cy = "17.4857" r="12.0143" fill = "#3575E2" />
                 </svg>
                 <span className="">JobJunction</span>
-            </a>
+            </Link>
 
             {/* {NAV ITEMS FOR LARGE DEVICES} */}
             <ul className="hidden md:flex gap-12">
@@ -70,27 +75,31 @@ const Navbar = () => {
             </ul>
 
             {/* SIGNUP AND LOGIN BUTTON */}
-            <div className="text-base text-primary font-medium space-x-3 hidden lg:flex items-center">
+            <div className="text-base text-primary font-medium hidden lg:flex items-center gap-3">
+                <button
+                  onClick={onToggleTheme}
+                  className='py-2 px-3 border rounded-lg hover:bg-gray-100 transition min-w-[96px]'
+                  title="Toggle theme"
+                >
+                  {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+                </button>
                 {isCompany || isSeeker ? (
                     <>
-                        {isCompany ? (
-                            <Link to="/company-profile" className='px-3 py-2 rounded hover:bg-gray-100 transition' title="Company Profile">
-                                🏢
-                            </Link>
-                        ) : (
-                            <Link to="/profile" className='px-3 py-2 rounded hover:bg-gray-100 transition' title="My Profile">
-                                👤
-                            </Link>
-                        )}
-                        <span className="px-4 py-2 rounded text-gray-700 font-semibold">
-                            {isCompany ? 'Company' : 'Seeker'}
+                        <Link to={profilePath} className='py-2 px-3 border rounded-lg hover:bg-gray-100 transition'>
+                            {profileLabel}
+                        </Link>
+                        <span className="px-3 py-2 rounded-lg bg-gray-100 text-gray-700 font-semibold">
+                            {roleLabel}
                         </span>
+                        <Link to={switchPath} className='py-2 px-3 border rounded-lg hover:bg-gray-100 transition'>
+                            {switchLabel}
+                        </Link>
                         <LogoutButton />
                     </>
                 ) : (
                     <>
-                        <Link to="/login" className='py-2 px-5 border rounded hover:bg-gray-100 transition'>Login</Link>
-                        <Link to="/sign-up" className='py-2 px-5 border rounded bg-blue text-white hover:opacity-90 transition'>Sign up</Link>
+                        <Link to="/login" className='py-2 px-5 border rounded-lg hover:bg-gray-100 transition'>Login</Link>
+                        <Link to="/sign-up" className='py-2 px-5 border rounded-lg bg-blue text-white hover:opacity-90 transition'>Sign up</Link>
                     </>
                 )}
             </div>
@@ -122,10 +131,21 @@ const Navbar = () => {
 
                 {isCompany || isSeeker ? (
                     <>
-                        <li className="text-white py-2 border-t border-gray-600 mt-2">
-                            <span className="font-semibold">{isCompany ? 'Company' : 'Seeker'}</span>
+                        <li className="text-white py-1">
+                            <Link to={profilePath}>{profileLabel}</Link>
                         </li>
-                        <li className="text-white py-1"><LogoutButton /></li>
+                        <li className="text-white py-1">
+                            <button onClick={onToggleTheme}>
+                              {theme === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode'}
+                            </button>
+                        </li>
+                        <li className="text-white py-2 border-t border-gray-600 mt-2">
+                            <span className="font-semibold">{roleLabel}</span>
+                        </li>
+                        <li className="text-white py-1">
+                            <Link to={switchPath}>{switchLabel}</Link>
+                        </li>
+                        <li className="text-white py-1"><LogoutButton className="w-full" /></li>
                     </>
                 ) : (
                     <>

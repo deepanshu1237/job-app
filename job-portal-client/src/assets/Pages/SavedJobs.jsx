@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import PageHeader from '../../components/PageHeader';
 import Swal from 'sweetalert2';
+import { apiUrl } from '../../utils/api';
 
 const SavedJobs = () => {
   const [savedJobs, setSavedJobs] = useState([]);
@@ -17,7 +18,7 @@ const SavedJobs = () => {
     }
     
     setIsLoading(true);
-    fetch(`http://localhost:3000/saved-jobs/${userEmail}`)
+    fetch(apiUrl(`/saved-jobs/${userEmail}`))
       .then(res => res.json())
       .then(data => {
         setSavedJobs(data);
@@ -31,7 +32,7 @@ const SavedJobs = () => {
   
   const handleRemove = async (jobId) => {
     try {
-      const res = await fetch(`http://localhost:3000/saved-job/${jobId}/${userEmail}`, { method: 'DELETE' });
+      const res = await fetch(apiUrl(`/saved-job/${jobId}/${userEmail}`), { method: 'DELETE' });
       if (res.ok) {
         setSavedJobs(savedJobs.filter(job => job.jobId !== jobId));
         Swal.fire({ icon: 'success', title: 'Removed from saved jobs', timer: 2000 });

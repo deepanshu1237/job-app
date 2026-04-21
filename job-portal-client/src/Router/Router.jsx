@@ -19,6 +19,7 @@ import Applicants from "../assets/Pages/Applicants";
 import UserProfile from "../assets/Pages/UserProfile";
 import CompanyProfile from "../assets/Pages/CompanyProfile";
 import AdminDashboard from "../assets/Pages/AdminDashboard";
+import { apiUrl } from "../utils/api";
 
 const router = createBrowserRouter([
     {
@@ -42,7 +43,7 @@ const router = createBrowserRouter([
         {
           path: "/edit-job/:id",
           element: <UpdateJob/>,
-          loader: ({params}) => fetch(`http://localhost:3000/all-jobs/${params.id}`)
+          loader: ({params}) => fetch(apiUrl(`/all-jobs/${params.id}`))
         },
         {
           path: "/job/:id",

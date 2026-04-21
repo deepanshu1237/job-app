@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
+import { apiUrl } from '../utils/api';
 
 const CompanySignup = () => {
   const [name, setName] = useState('');
@@ -16,7 +17,7 @@ const CompanySignup = () => {
       return;
     }
     try {
-      const res = await fetch('http://localhost:3000/company/signup', {
+      const res = await fetch(apiUrl('/company/signup'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, companyName, password }),

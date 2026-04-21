@@ -8,7 +8,9 @@
 const { MongoClient, ServerApiVersion } = require('mongodb');
 require('dotenv').config();
 
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.vgn0xjv.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
+const uri =
+  process.env.MONGODB_URI ||
+  `mongodb://127.0.0.1:27017/${process.env.DB_NAME || 'mernJobPortal'}`;
 
 const client = new MongoClient(uri, {
   serverApi: {
@@ -120,7 +122,7 @@ async function validateDataStructure(db) {
       log(`  ✓ Application sample structure:`, 'green');
       log(`    - _id: ${typeof appSample._id}`, 'blue');
       log(`    - jobId: ${typeof appSample.jobId}`, 'blue');
-      log(`    - seekerEmail: ${appSample.seekerEmail}`, 'blue');
+      log(`    - userEmail: ${appSample.userEmail}`, 'blue');
       log(`    - status: ${appSample.status}`, 'blue');
     }
 
@@ -168,7 +170,7 @@ async function validateConnections(db) {
       const app = applications[0];
       log(`  ✓ Sample application:`, 'green');
       log(`    - jobId: ${app.jobId}`, 'blue');
-      log(`    - seekerEmail: ${app.seekerEmail}`, 'blue');
+      log(`    - userEmail: ${app.userEmail}`, 'blue');
       
       // Verify job exists
       const { ObjectId } = require('mongodb');
@@ -184,7 +186,7 @@ async function validateConnections(db) {
       }
 
       // Verify seeker exists
-      const seeker = await db.collection('users').findOne({ email: app.seekerEmail });
+      const seeker = await db.collection('users').findOne({ email: app.userEmail });
       if (seeker) {
         log(`    - Linked user found: ${seeker.name || seeker.email}`, 'green');
       } else {
@@ -244,15 +246,15 @@ async function runValidation() {
     await client.connect();
     log('\n✓ Connected to MongoDB', 'green');
 
-    const db = client.db('mernJobPortal');
+    const db = client.db(process.env.DB_NAME || 'mernJobPortal');
 
     // Validate collections
     const collectionSpecs = [
       { name: 'users', fields: ['email', 'password', 'name'] },
       { name: 'companies', fields: ['email', 'password', 'companyName'] },
       { name: 'demoJobs', fields: ['jobTitle', 'companyName', 'postedBy'] },
-      { name: 'applications', fields: ['jobId', 'seekerEmail', 'status'] },
-      { name: 'savedJobs', fields: ['jobId', 'seekerEmail'] },
+      { name: 'applications', fields: ['jobId', 'userEmail', 'status'] },
+      { name: 'savedJobs', fields: ['jobId', 'userEmail'] },
       { name: 'reviews', fields: ['companyEmail', 'rating', 'comment'] }
     ];
 

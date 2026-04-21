@@ -42,7 +42,8 @@ let tokens = {
 
 let ids = {
   jobId: null,
-  applicationId: null
+  applicationId: null,
+  interviewId: null
 };
 
 // Utility function for API calls
@@ -190,25 +191,45 @@ async function testApplyForJob() {
     log('  Skipped: No job ID available', 'yellow');
     return false;
   }
-  const applyData = {
-    jobId: ids.jobId,
-    seekerEmail: testData.seeker.email,
-    resumeLink: 'https://example.com/resume.pdf'
-  };
-  const result = await apiCall('POST', '/apply', applyData, tokens.seeker);
-  logTest('Apply for job', result.ok);
-  if (result.ok) {
-    ids.applicationId = result.data.insertedId;
-    log(`  Application ID: ${ids.applicationId}`, 'green');
-  } else {
-    log(`  Error: ${result.data.error}`, 'red');
+  try {
+    const form = new FormData();
+    form.append('jobId', ids.jobId);
+
+    const resumeText = `Test Resume\nName: ${testData.seeker.name}\nEmail: ${testData.seeker.email}\n`;
+    const blob = new Blob([resumeText], { type: 'application/pdf' });
+    form.append('resume', blob, 'resume.pdf');
+
+    const res = await fetch(`${BASE_URL}/apply`, {
+      method: 'POST',
+      headers: {
+        ...(tokens.seeker && { 'Authorization': `Bearer ${tokens.seeker}` })
+      },
+      body: form
+    });
+
+    const data = await res.json();
+    const ok = res.ok;
+    logTest('Apply for job (with resume upload)', ok);
+
+    if (ok) {
+      ids.applicationId = data.insertedId;
+      log(`  Application ID: ${ids.applicationId}`, 'green');
+      log(`  Resume stored: ${data.resume?.url ? '✓' : '✗'}`, data.resume?.url ? 'green' : 'red');
+    } else {
+      log(`  Error: ${data.error}`, 'red');
+    }
+
+    return ok;
+  } catch (e) {
+    logTest('Apply for job (with resume upload)', false);
+    log(`  Error: ${e.message}`, 'red');
+    return false;
   }
-  return result.ok;
 }
 
 async function testGetMyApplications() {
   log('\n📋 Test 9: Get My Applications (Seeker)', 'cyan');
-  const result = await apiCall('GET', `/my-applications/${testData.seeker.email}`);
+  const result = await apiCall('GET', `/my-applications/${testData.seeker.email}`, null, tokens.seeker);
   logTest('Get my applications', result.ok && Array.isArray(result.data));
   if (result.ok) {
     log(`  Applications found: ${result.data.length}`, 'green');
@@ -220,7 +241,7 @@ async function testGetMyApplications() {
 
 async function testGetApplicants() {
   log('\n👥 Test 10: Get Applicants (Company)', 'cyan');
-  const result = await apiCall('GET', `/applicants/${testData.company.email}`);
+  const result = await apiCall('GET', `/applicants/${testData.company.email}`, null, tokens.company);
   logTest('Get applicants', result.ok && Array.isArray(result.data));
   if (result.ok) {
     log(`  Applicants found: ${result.data.length}`, 'green');
@@ -237,7 +258,7 @@ async function testUpdateApplicationStatus() {
     return false;
   }
   const statusData = { status: 'interviewed' };
-  const result = await apiCall('PATCH', `/application/${ids.applicationId}/status`, statusData);
+  const result = await apiCall('PATCH', `/application/${ids.applicationId}/status`, statusData, tokens.company);
   logTest('Update application status', result.ok);
   if (result.ok) {
     log(`  Status updated to: interviewed`, 'green');
@@ -245,6 +266,83 @@ async function testUpdateApplicationStatus() {
     log(`  Error: ${result.data.error}`, 'red');
   }
   return result.ok;
+}
+
+async function testUpdateApplicationStage() {
+  log('\n🧩 Test 11b: Update ATS Stage (Company)', 'cyan');
+  if (!ids.applicationId) {
+    log('  Skipped: No application ID available', 'yellow');
+    return false;
+  }
+  const result = await apiCall('PATCH', `/application/${ids.applicationId}/stage`, { stage: 'screening' }, tokens.company);
+  logTest('Update application stage', result.ok);
+  if (!result.ok) log(`  Error: ${result.data.error}`, 'red');
+  return result.ok;
+}
+
+async function testAddCompanyNote() {
+  log('\n📝 Test 11c: Add Company Note', 'cyan');
+  if (!ids.applicationId) {
+    log('  Skipped: No application ID available', 'yellow');
+    return false;
+  }
+  const result = await apiCall('POST', `/application/${ids.applicationId}/notes`, { text: 'Strong React fundamentals.' }, tokens.company);
+  logTest('Add note', result.ok);
+  if (!result.ok) log(`  Error: ${result.data.error}`, 'red');
+  return result.ok;
+}
+
+async function testMessaging() {
+  log('\n💬 Test 11d: Messaging (Seeker ↔ Company)', 'cyan');
+  if (!ids.applicationId) {
+    log('  Skipped: No application ID available', 'yellow');
+    return false;
+  }
+  const s1 = await apiCall('POST', `/application/${ids.applicationId}/messages`, { text: 'Hi! Excited about this role.' }, tokens.seeker);
+  logTest('Seeker send message', s1.ok);
+  if (!s1.ok) return false;
+
+  const c1 = await apiCall('POST', `/application/${ids.applicationId}/messages`, { text: 'Thanks! Can you share availability?' }, tokens.company);
+  logTest('Company send message', c1.ok);
+  if (!c1.ok) return false;
+
+  const list = await apiCall('GET', `/application/${ids.applicationId}/messages`, null, tokens.seeker);
+  logTest('Get messages', list.ok && Array.isArray(list.data) && list.data.length >= 2);
+  return list.ok;
+}
+
+async function testInterviewScheduling() {
+  log('\n📅 Test 11e: Interview Scheduling', 'cyan');
+  if (!ids.applicationId) {
+    log('  Skipped: No application ID available', 'yellow');
+    return false;
+  }
+  const now = new Date();
+  const slot1 = new Date(now.getTime() + 60 * 60 * 1000).toISOString();
+  const slot2 = new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString();
+
+  const propose = await apiCall(
+    'POST',
+    `/application/${ids.applicationId}/interviews/propose`,
+    { slots: [slot1, slot2] },
+    tokens.company
+  );
+  logTest('Propose interview', propose.ok);
+  if (!propose.ok) return false;
+  ids.interviewId = propose.data?.interview?.id || null;
+
+  const respond = await apiCall(
+    'POST',
+    `/application/${ids.applicationId}/interviews/${ids.interviewId}/respond`,
+    { selectedSlot: slot1 },
+    tokens.seeker
+  );
+  logTest('Accept interview slot', respond.ok);
+  if (!respond.ok) return false;
+
+  const list = await apiCall('GET', `/application/${ids.applicationId}/interviews`, null, tokens.company);
+  logTest('Get interviews', list.ok && Array.isArray(list.data) && list.data.length >= 1);
+  return list.ok;
 }
 
 async function testSaveJob() {
@@ -329,7 +427,7 @@ async function testUpdateUserProfile() {
 
 async function testGetUserProfile() {
   log('\n📄 Test 18: Get User Profile', 'cyan');
-  const result = await apiCall('GET', `/user-profile/${testData.seeker.email}`);
+  const result = await apiCall('GET', `/user-profile/${testData.seeker.email}`, null, tokens.seeker);
   logTest('Get user profile', result.ok && result.data.email === testData.seeker.email);
   if (result.ok) {
     log(`  User: ${result.data.name || 'N/A'}`, 'green');
@@ -357,7 +455,7 @@ async function testUpdateCompanyProfile() {
 
 async function testGetCompanyProfile() {
   log('\n📄 Test 20: Get Company Profile', 'cyan');
-  const result = await apiCall('GET', `/company-profile/${testData.company.email}`);
+  const result = await apiCall('GET', `/company-profile/${testData.company.email}`, null, tokens.company);
   logTest('Get company profile', result.ok && result.data.email === testData.company.email);
   if (result.ok) {
     log(`  Company: ${result.data.companyName || 'N/A'}`, 'green');
@@ -440,6 +538,10 @@ async function runAllTests() {
     testGetMyApplications,
     testGetApplicants,
     testUpdateApplicationStatus,
+    testUpdateApplicationStage,
+    testAddCompanyNote,
+    testMessaging,
+    testInterviewScheduling,
     testSaveJob,
     testGetSavedJobs,
     testRemoveSavedJob,

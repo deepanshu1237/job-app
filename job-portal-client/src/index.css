@@ -1,3 +1,107 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+html.theme-light {
+  color-scheme: light;
+}
+
+html.theme-dark {
+  color-scheme: dark;
+}
+
+body {
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+html.theme-light body {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+html.theme-dark body {
+  background: #0b1220;
+  color: #e2e8f0;
+}
+
+/* Global dark theme overrides for existing Tailwind utility classes in project */
+html.theme-dark .bg-white {
+  background-color: #111827 !important;
+  color: #e5e7eb !important;
+}
+
+html.theme-dark .bg-gray-50,
+html.theme-dark .bg-blueGray-50 {
+  background-color: #0f172a !important;
+}
+
+html.theme-dark .bg-gray-100,
+html.theme-dark .bg-blue-50,
+html.theme-dark .bg-green-50,
+html.theme-dark .bg-purple-50,
+html.theme-dark .bg-orange-50,
+html.theme-dark .bg-red-50,
+html.theme-dark .bg-yellow-50 {
+  background-color: #1f2937 !important;
+}
+
+html.theme-dark .text-black,
+html.theme-dark .text-primary,
+html.theme-dark .text-gray-800,
+html.theme-dark .text-gray-700,
+html.theme-dark .text-gray-600,
+html.theme-dark .text-gray-500,
+html.theme-dark .text-blueGray-700,
+html.theme-dark .text-blueGray-500 {
+  color: #e5e7eb !important;
+}
+
+html.theme-dark .text-gray-400 {
+  color: #cbd5e1 !important;
+}
+
+html.theme-dark .border,
+html.theme-dark .border-gray-200,
+html.theme-dark .border-gray-300,
+html.theme-dark .border-blueGray-100 {
+  border-color: #374151 !important;
+}
+
+html.theme-dark input,
+html.theme-dark select,
+html.theme-dark textarea {
+  background-color: #0f172a !important;
+  color: #e5e7eb !important;
+  border-color: #374151 !important;
+}
+
+html.theme-dark input::placeholder,
+html.theme-dark textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+html.theme-dark a {
+  color: #93c5fd;
+}
+
+html.theme-dark a.text-white,
+html.theme-dark .text-white {
+  color: #f8fafc !important;
+}
+
+html.theme-dark button:not(.text-white) {
+  color: #e5e7eb;
+}
+
+html.theme-dark table,
+html.theme-dark th,
+html.theme-dark td {
+  border-color: #374151 !important;
+  color: #e5e7eb !important;
+}

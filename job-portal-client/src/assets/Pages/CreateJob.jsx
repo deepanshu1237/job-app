@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useForm } from "react-hook-form"
 import { useNavigate } from 'react-router-dom'
 import CreatableSelect from "react-select/creatable";
+import { apiUrl } from '../../utils/api';
 
 const CreateJob = () => {
     const navigate = useNavigate();
@@ -46,7 +47,7 @@ const CreateJob = () => {
             const headers = { 'content-type': 'application/json', 'Authorization': `Bearer ${token}` };
             console.log('CreateJob - headers:', headers);
             console.log('CreateJob - payload:', data);
-            const res = await fetch("http://localhost:3000/post-job", {
+            const res = await fetch(apiUrl("/post-job"), {
               method: "POST",
               headers,
               body: JSON.stringify(data)
@@ -171,8 +172,36 @@ const CreateJob = () => {
                 <option value="">Choose Experience Type</option>
                 <option value="Fresher/No Experience">Fresher</option>
                 <option value="Internship">Internship</option>
-                <option value="Remote Work">Experienced</option>
+                <option value="Experienced">Experienced</option>
               </select>
+            </div>
+          </div>
+
+          {/* Requirements Row */}
+          <div className="grid lg:grid-cols-2 gap-6">
+            <div>
+              <label className='block mb-2 text-lg font-semibold text-gray-700'>Minimum Experience Required (years)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.5"
+                placeholder='Ex: 2'
+                {...register("minExperienceYears")}
+                className='w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue focus:outline-none transition'
+              />
+            </div>
+            <div>
+              <label className='block mb-2 text-lg font-semibold text-gray-700'>Minimum Skill Match (%)</label>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="5"
+                placeholder='Ex: 60'
+                {...register("minSkillMatch")}
+                className='w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue focus:outline-none transition'
+              />
+              <p className="text-sm text-gray-500 mt-2">Based on required skill sets vs student profile skills.</p>
             </div>
           </div>
 

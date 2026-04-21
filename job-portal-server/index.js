@@ -3,17 +3,28 @@ const app = express();
 const cors = require('cors');
 require('dotenv').config();
 const port = process.env.PORT || 3000;
+const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
 
 // Middleware
 app.use(express.json());
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://localhost:5174"], 
+    origin: (process.env.CORS_ORIGINS || "http://localhost:5173,http://localhost:5174")
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean),
     methods: ["GET","POST","PUT","PATCH","DELETE","OPTIONS"],
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
+
+// Serve uploaded resumes
+const uploadsDir = path.join(__dirname, 'uploads');
+fs.mkdirSync(uploadsDir, { recursive: true });
+app.use('/uploads', express.static(uploadsDir));
 
 app.get('/', (req, res) => {
   res.send('Hello Developer');
@@ -24,7 +35,13 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.vgn0xjv.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
+// Prefer a full URI so the app works with local MongoDB or any Atlas cluster.
+// Examples:
+// - mongodb://127.0.0.1:27017/mernJobPortal
+// - mongodb+srv://<user>:<pass>@<cluster-host>/<db>?retryWrites=true&w=majority
+const uri =
+  process.env.MONGODB_URI ||
+  `mongodb://127.0.0.1:27017/${process.env.DB_NAME || 'mernJobPortal'}`;
 
 const client = new MongoClient(uri, {
   serverApi: {
@@ -38,12 +55,14 @@ async function run() {
   try {
     await client.connect();
 
-    const db = client.db("mernJobPortal");
+    const db = client.db(process.env.DB_NAME || "mernJobPortal");
     const jobsCollections = db.collection("demoJobs");
     const usersCollection = db.collection("users");
     const companiesCollection = db.collection("companies");
     const applicationsCollection = db.collection("applications");
     const savedJobsCollection = db.collection("savedJobs");
+    const jobReportsCollection = db.collection("jobReports");
+    const referralRequestsCollection = db.collection("referralRequests");
 
     const JWT_SECRET = process.env.JWT_SECRET || 'someRandomSecret123';
 
@@ -68,11 +87,151 @@ async function run() {
       }
     }
 
+    function requireRole(role) {
+      return (req, res, next) => {
+        if (!req.user || req.user.role !== role) {
+          return res.status(403).send({ error: 'Forbidden' });
+        }
+        next();
+      };
+    }
+
+    function evaluateScamRisk(job = {}) {
+      const reasons = [];
+      let score = 0;
+
+      const title = String(job.jobTitle || '').toLowerCase();
+      const desc = String(job.description || '').toLowerCase();
+      const suspicious = [
+        'pay fee',
+        'registration fee',
+        'urgent payment',
+        'whatsapp only',
+        'telegram',
+        'no interview',
+        'guaranteed job',
+      ];
+      for (const kw of suspicious) {
+        if (title.includes(kw) || desc.includes(kw)) {
+          score += 20;
+          reasons.push(`Suspicious keyword: "${kw}"`);
+        }
+      }
+
+      const maxPrice = Number(job.maxPrice);
+      if (Number.isFinite(maxPrice) && maxPrice > 1000000) {
+        score += 15;
+        reasons.push('Unusually high salary value');
+      }
+
+      if (!job.companyLogo) {
+        score += 10;
+        reasons.push('Missing company logo');
+      }
+      if (!job.jobLocation) {
+        score += 10;
+        reasons.push('Missing job location');
+      }
+
+      const riskLevel = score >= 60 ? 'high' : score >= 30 ? 'medium' : 'low';
+      return {
+        scamScore: Math.min(score, 100),
+        riskLevel,
+        riskReasons: reasons,
+        isFlagged: riskLevel !== 'low',
+      };
+    }
+
+    function parseStudentProfileFields(payload = {}) {
+      const out = {};
+      const errors = [];
+
+      const numberOrNull = (value) => {
+        if (value === undefined || value === null || value === '') return null;
+        const n = Number(value);
+        return Number.isFinite(n) ? n : NaN;
+      };
+
+      const tenth = numberOrNull(payload.tenthPercentage);
+      if (Number.isNaN(tenth) || (tenth !== null && (tenth < 0 || tenth > 100))) {
+        errors.push('10th percentage must be between 0 and 100');
+      } else out.tenthPercentage = tenth;
+
+      const twelfth = numberOrNull(payload.twelfthPercentage);
+      if (Number.isNaN(twelfth) || (twelfth !== null && (twelfth < 0 || twelfth > 100))) {
+        errors.push('12th percentage must be between 0 and 100');
+      } else out.twelfthPercentage = twelfth;
+
+      const cgpa = numberOrNull(payload.cgpa);
+      if (Number.isNaN(cgpa) || (cgpa !== null && (cgpa < 0 || cgpa > 10))) {
+        errors.push('CGPA must be between 0 and 10');
+      } else out.cgpa = cgpa;
+
+      const passoutYear = numberOrNull(payload.passoutYear);
+      const currentYear = new Date().getFullYear();
+      if (Number.isNaN(passoutYear) || (passoutYear !== null && (passoutYear < 1990 || passoutYear > currentYear + 10))) {
+        errors.push(`Passout year must be between 1990 and ${currentYear + 10}`);
+      } else out.passoutYear = passoutYear;
+
+      const exp = numberOrNull(payload.experienceYears);
+      if (Number.isNaN(exp) || (exp !== null && (exp < 0 || exp > 50))) {
+        errors.push('Experience years must be between 0 and 50');
+      } else out.experienceYears = exp ?? 0;
+
+      out.skills = Array.isArray(payload.skills)
+        ? payload.skills.map((s) => String(s).trim()).filter(Boolean).slice(0, 50)
+        : [];
+      out.degree = String(payload.degree || '').trim().slice(0, 120);
+      out.branch = String(payload.branch || '').trim().slice(0, 120);
+      out.college = String(payload.college || '').trim().slice(0, 180);
+
+      return { out, errors };
+    }
+
+    // Resume upload (PDF/DOC/DOCX up to 5MB)
+    const resumeUpload = multer({
+      storage: multer.diskStorage({
+        destination: (_req, _file, cb) => cb(null, uploadsDir),
+        filename: (_req, file, cb) => {
+          const safeBase = (file.originalname || 'resume')
+            .replace(/[^a-zA-Z0-9._-]/g, '_')
+            .slice(-80);
+          const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+          cb(null, `${unique}-${safeBase}`);
+        },
+      }),
+      limits: { fileSize: 5 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        const allowed = new Set([
+          'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ]);
+        if (!allowed.has(file.mimetype)) return cb(new Error('Unsupported resume format'));
+        cb(null, true);
+      },
+    });
+
     // Post Job (protected) - company must be authenticated
     app.post("/post-job", verifyJWT, async (req, res) => {
       try {
-        const body = req.body;
+        if (!req.user || req.user.role !== 'company') return res.status(403).send({ error: 'Forbidden' });
+        const body = req.body || {};
+        if (!body.jobTitle || !body.companyName || !body.jobLocation || !body.employmentType || !body.description) {
+          return res.status(400).send({ error: 'Missing required job fields' });
+        }
         body.createAt = new Date();
+        body.postingDate = body.postingDate || new Date().toISOString().split('T')[0];
+        body.status = body.status || 'active';
+        if (body.minExperienceYears !== undefined && body.minExperienceYears !== null && body.minExperienceYears !== '') {
+          const n = Number(body.minExperienceYears);
+          body.minExperienceYears = Number.isFinite(n) ? n : 0;
+        }
+        if (body.minSkillMatch !== undefined && body.minSkillMatch !== null && body.minSkillMatch !== '') {
+          const n = Number(body.minSkillMatch);
+          body.minSkillMatch = Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 0;
+        }
+        body.scamShield = evaluateScamRisk(body);
         // enforce postedBy from token
         body.postedBy = req.user.email;
         const result = await jobsCollections.insertOne(body);
@@ -96,6 +255,31 @@ async function run() {
       res.send(job);
     });
 
+    // Job reporting (scam shield)
+    app.post('/jobs/:id/report', verifyJWT, requireRole('seeker'), async (req, res) => {
+      try {
+        const jobId = req.params.id;
+        const { reason } = req.body || {};
+        const job = await jobsCollections.findOne({ _id: new ObjectId(jobId) });
+        if (!job) return res.status(404).send({ error: 'Job not found' });
+
+        const existing = await jobReportsCollection.findOne({ jobId: new ObjectId(jobId), reporterEmail: req.user.email });
+        if (existing) return res.status(409).send({ error: 'Already reported' });
+
+        const report = {
+          jobId: new ObjectId(jobId),
+          reporterEmail: req.user.email,
+          reason: String(reason || '').trim() || 'Suspicious job',
+          status: 'open',
+          createdAt: new Date(),
+        };
+        const result = await jobReportsCollection.insertOne(report);
+        res.status(201).send({ insertedId: result.insertedId });
+      } catch (err) {
+        res.status(500).send({ error: 'Failed to report job' });
+      }
+    });
+
     // Get jobs by email
     app.get("/myJobs/:email", async (req, res) => {
       const jobs = await jobsCollections
@@ -107,12 +291,46 @@ async function run() {
     // Signup - save job seeker to users collection (hash password)
     app.post('/signup', async (req, res) => {
       try {
-        const { name, email, mobile, password } = req.body;
+        const {
+          name,
+          email,
+          mobile,
+          password,
+          skills,
+          experienceYears,
+          tenthPercentage,
+          twelfthPercentage,
+          cgpa,
+          degree,
+          branch,
+          college,
+          passoutYear,
+        } = req.body || {};
         if (!email || !password || !name) return res.status(400).send({ error: 'Name, email and password required' });
         const existing = await usersCollection.findOne({ email });
         if (existing) return res.status(409).send({ error: 'User already exists' });
         const hashed = await bcrypt.hash(password, 10);
-        const user = { name, email, mobile: mobile || '', password: hashed, createdAt: new Date() };
+        const { out: studentFields, errors } = parseStudentProfileFields({
+          skills,
+          experienceYears,
+          tenthPercentage,
+          twelfthPercentage,
+          cgpa,
+          degree,
+          branch,
+          college,
+          passoutYear,
+        });
+        if (errors.length > 0) return res.status(400).send({ error: errors[0], errors });
+
+        const user = {
+          name,
+          email,
+          mobile: mobile || '',
+          password: hashed,
+          createdAt: new Date(),
+          ...studentFields,
+        };
         const result = await usersCollection.insertOne(user);
         res.status(201).send({ insertedId: result.insertedId });
       } catch (err) {
@@ -188,46 +406,94 @@ async function run() {
 
     // =====  APPLICATIONS ENDPOINTS =====
     
-    // Apply for a job
-    app.post('/apply', verifyJWT, async (req, res) => {
+    async function getApplicationOr404(appId, res) {
+      let appDoc = null;
       try {
-        const { jobId } = req.body;
-        const userEmail = req.user.email;
-        
-        if (!jobId) return res.status(400).send({ error: 'Job ID required' });
-        
-        // Check if already applied
-        const existing = await applicationsCollection.findOne({ jobId: new ObjectId(jobId), userEmail });
-        if (existing) return res.status(409).send({ error: 'Already applied to this job' });
-        
-        // Get job details
-        const job = await jobsCollections.findOne({ _id: new ObjectId(jobId) });
-        if (!job) return res.status(404).send({ error: 'Job not found' });
-        
-        // Create application
-        const application = {
-          jobId: new ObjectId(jobId),
-          userEmail,
-          jobTitle: job.jobTitle,
-          companyName: job.companyName,
-          companyEmail: job.postedBy,
-          status: 'pending',
-          appliedAt: new Date(),
-          updatedAt: new Date()
-        };
-        
-        const result = await applicationsCollection.insertOne(application);
-        res.status(201).send({ insertedId: result.insertedId });
-      } catch (err) {
-        console.error('Apply error:', err.message);
-        res.status(500).send({ error: 'Failed to apply' });
+        appDoc = await applicationsCollection.findOne({ _id: new ObjectId(appId) });
+      } catch {
+        return null;
       }
-    });
+      if (!appDoc) {
+        res.status(404).send({ error: 'Application not found' });
+        return null;
+      }
+      return appDoc;
+    }
+
+    function assertCanAccessApplication(appDoc, user) {
+      if (!user) return false;
+      if (user.role === 'company') return appDoc.companyEmail === user.email;
+      if (user.role === 'seeker') return appDoc.userEmail === user.email;
+      return false;
+    }
+    
+    // Apply for a job (job seeker only) + upload resume
+    // multipart/form-data: fields: jobId, file: resume
+    app.post(
+      '/apply',
+      verifyJWT,
+      requireRole('seeker'),
+      resumeUpload.single('resume'),
+      async (req, res) => {
+        try {
+          const jobId = req.body?.jobId;
+          const userEmail = req.user.email;
+
+          if (!jobId) return res.status(400).send({ error: 'Job ID required' });
+          if (!req.file) return res.status(400).send({ error: 'Resume file is required' });
+
+          // Check if already applied
+          const existing = await applicationsCollection.findOne({ jobId: new ObjectId(jobId), userEmail });
+          if (existing) return res.status(409).send({ error: 'Already applied to this job' });
+
+          // Get job details
+          const job = await jobsCollections.findOne({ _id: new ObjectId(jobId) });
+          if (!job) return res.status(404).send({ error: 'Job not found' });
+
+          const resume = {
+            originalName: req.file.originalname,
+            filename: req.file.filename,
+            mimetype: req.file.mimetype,
+            size: req.file.size,
+            url: `/uploads/${req.file.filename}`,
+            uploadedAt: new Date(),
+          };
+
+          // Create application
+          const application = {
+            jobId: new ObjectId(jobId),
+            userEmail,
+            jobTitle: job.jobTitle,
+            companyName: job.companyName,
+            companyEmail: job.postedBy,
+            // status is used by the current UI (pending/accepted/rejected/interviewed)
+            status: 'pending',
+            // ATS pipeline stage
+            stage: 'new',
+            tags: [],
+            notes: [],
+            messages: [],
+            interviews: [],
+            timeline: [{ at: new Date(), type: 'applied', byRole: 'seeker', byEmail: userEmail }],
+            resume,
+            appliedAt: new Date(),
+            updatedAt: new Date(),
+          };
+
+          const result = await applicationsCollection.insertOne(application);
+          res.status(201).send({ insertedId: result.insertedId, resume });
+        } catch (err) {
+          console.error('Apply error:', err.message);
+          res.status(500).send({ error: 'Failed to apply' });
+        }
+      }
+    );
     
     // Get my applications (for job seeker)
-    app.get('/my-applications/:email', async (req, res) => {
+    app.get('/my-applications/:email', verifyJWT, requireRole('seeker'), async (req, res) => {
       try {
         const userEmail = req.params.email;
+        if (userEmail !== req.user.email) return res.status(403).send({ error: 'Forbidden' });
         const applications = await applicationsCollection
           .find({ userEmail })
           .sort({ appliedAt: -1 })
@@ -240,11 +506,11 @@ async function run() {
     });
     
     // Get applicants for a job (for company)
-    app.get('/job/:jobId/applicants', async (req, res) => {
+    app.get('/job/:jobId/applicants', verifyJWT, requireRole('company'), async (req, res) => {
       try {
         const jobId = req.params.jobId;
         const applicants = await applicationsCollection
-          .find({ jobId: new ObjectId(jobId) })
+          .find({ jobId: new ObjectId(jobId), companyEmail: req.user.email })
           .sort({ appliedAt: -1 })
           .toArray();
         res.send(applicants);
@@ -254,15 +520,21 @@ async function run() {
       }
     });
     
-    // Get all applicants for company (all jobs)
-    app.get('/applicants/:companyEmail', async (req, res) => {
+    // Get all applicants for company (all jobs) (company only)
+    app.get('/applicants/:companyEmail', verifyJWT, requireRole('company'), async (req, res) => {
       try {
         const companyEmail = req.params.companyEmail;
+        if (companyEmail !== req.user.email) return res.status(403).send({ error: 'Forbidden' });
         const applicants = await applicationsCollection
           .find({ companyEmail })
           .sort({ appliedAt: -1 })
           .toArray();
-        res.send(applicants);
+        const seekerEmails = [...new Set(applicants.map((a) => a.userEmail).filter(Boolean))];
+        const seekerProfiles = await usersCollection
+          .find({ email: { $in: seekerEmails } }, { projection: { email: 1, name: 1, skills: 1, experienceYears: 1, proofLinks: 1, certificates: 1 } })
+          .toArray();
+        const profileMap = new Map(seekerProfiles.map((p) => [p.email, p]));
+        res.send(applicants.map((a) => ({ ...a, seekerProfile: profileMap.get(a.userEmail) || null })));
       } catch (err) {
         console.error('Get company applicants error:', err.message);
         res.status(500).send({ error: 'Failed to fetch applicants' });
@@ -270,23 +542,370 @@ async function run() {
     });
     
     // Update application status (company only)
-    app.patch('/application/:appId/status', async (req, res) => {
+    app.patch('/application/:appId/status', verifyJWT, requireRole('company'), async (req, res) => {
       try {
         const appId = req.params.appId;
         const { status } = req.body;
         
         const validStatuses = ['pending', 'accepted', 'rejected', 'interviewed'];
         if (!validStatuses.includes(status)) return res.status(400).send({ error: 'Invalid status' });
+
+        // ensure company owns this application
+        const existing = await applicationsCollection.findOne({ _id: new ObjectId(appId) });
+        if (!existing) return res.status(404).send({ error: 'Application not found' });
+        if (existing.companyEmail !== req.user.email) return res.status(403).send({ error: 'Forbidden' });
         
         const result = await applicationsCollection.updateOne(
           { _id: new ObjectId(appId) },
-          { $set: { status, updatedAt: new Date() } }
+          {
+            $set: { status, updatedAt: new Date() },
+            $push: { timeline: { at: new Date(), type: 'status_changed', byRole: 'company', byEmail: req.user.email, meta: { status } } }
+          }
         );
         
         res.send(result);
       } catch (err) {
         console.error('Update status error:', err.message);
         res.status(500).send({ error: 'Failed to update status' });
+      }
+    });
+
+    // ===== ATS PIPELINE (company) =====
+    app.patch('/application/:appId/stage', verifyJWT, requireRole('company'), async (req, res) => {
+      try {
+        const appId = req.params.appId;
+        const { stage } = req.body;
+        const validStages = ['new', 'screening', 'interview', 'offer', 'hired', 'rejected'];
+        if (!validStages.includes(stage)) return res.status(400).send({ error: 'Invalid stage' });
+
+        const existing = await getApplicationOr404(appId, res);
+        if (!existing) return;
+        if (existing.companyEmail !== req.user.email) return res.status(403).send({ error: 'Forbidden' });
+
+        const result = await applicationsCollection.updateOne(
+          { _id: new ObjectId(appId) },
+          {
+            $set: { stage, updatedAt: new Date() },
+            $push: { timeline: { at: new Date(), type: 'stage_changed', byRole: 'company', byEmail: req.user.email, meta: { stage } } }
+          }
+        );
+        res.send(result);
+      } catch (err) {
+        console.error('Update stage error:', err.message);
+        res.status(500).send({ error: 'Failed to update stage' });
+      }
+    });
+
+    app.post('/application/:appId/notes', verifyJWT, requireRole('company'), async (req, res) => {
+      try {
+        const appId = req.params.appId;
+        const { text } = req.body;
+        if (!text || !text.trim()) return res.status(400).send({ error: 'Note text required' });
+
+        const existing = await getApplicationOr404(appId, res);
+        if (!existing) return;
+        if (existing.companyEmail !== req.user.email) return res.status(403).send({ error: 'Forbidden' });
+
+        const note = { id: new ObjectId().toString(), text: text.trim(), at: new Date(), byEmail: req.user.email };
+        const result = await applicationsCollection.updateOne(
+          { _id: new ObjectId(appId) },
+          {
+            $push: { notes: note, timeline: { at: new Date(), type: 'note_added', byRole: 'company', byEmail: req.user.email } },
+            $set: { updatedAt: new Date() }
+          }
+        );
+        res.status(201).send({ ok: true, note, result });
+      } catch (err) {
+        console.error('Add note error:', err.message);
+        res.status(500).send({ error: 'Failed to add note' });
+      }
+    });
+
+    app.put('/application/:appId/tags', verifyJWT, requireRole('company'), async (req, res) => {
+      try {
+        const appId = req.params.appId;
+        const { tags } = req.body;
+        if (!Array.isArray(tags)) return res.status(400).send({ error: 'tags must be an array' });
+
+        const cleaned = [...new Set(tags.map(t => String(t).trim()).filter(Boolean))].slice(0, 20);
+        const existing = await getApplicationOr404(appId, res);
+        if (!existing) return;
+        if (existing.companyEmail !== req.user.email) return res.status(403).send({ error: 'Forbidden' });
+
+        const result = await applicationsCollection.updateOne(
+          { _id: new ObjectId(appId) },
+          {
+            $set: { tags: cleaned, updatedAt: new Date() },
+            $push: { timeline: { at: new Date(), type: 'tags_updated', byRole: 'company', byEmail: req.user.email, meta: { tags: cleaned } } }
+          }
+        );
+        res.send({ ok: true, tags: cleaned, result });
+      } catch (err) {
+        console.error('Update tags error:', err.message);
+        res.status(500).send({ error: 'Failed to update tags' });
+      }
+    });
+
+    // ===== Messaging (seeker + company) =====
+    app.get('/application/:appId/messages', verifyJWT, async (req, res) => {
+      try {
+        const appId = req.params.appId;
+        const appDoc = await getApplicationOr404(appId, res);
+        if (!appDoc) return;
+        if (!assertCanAccessApplication(appDoc, req.user)) return res.status(403).send({ error: 'Forbidden' });
+        res.send(appDoc.messages || []);
+      } catch (err) {
+        console.error('Get messages error:', err.message);
+        res.status(500).send({ error: 'Failed to fetch messages' });
+      }
+    });
+
+    app.post('/application/:appId/messages', verifyJWT, async (req, res) => {
+      try {
+        const appId = req.params.appId;
+        const { text } = req.body;
+        if (!text || !text.trim()) return res.status(400).send({ error: 'Message text required' });
+
+        const appDoc = await getApplicationOr404(appId, res);
+        if (!appDoc) return;
+        if (!assertCanAccessApplication(appDoc, req.user)) return res.status(403).send({ error: 'Forbidden' });
+
+        const msg = {
+          id: new ObjectId().toString(),
+          text: text.trim(),
+          at: new Date(),
+          senderRole: req.user.role,
+          senderEmail: req.user.email,
+        };
+
+        const result = await applicationsCollection.updateOne(
+          { _id: new ObjectId(appId) },
+          {
+            $push: { messages: msg, timeline: { at: new Date(), type: 'message_sent', byRole: req.user.role, byEmail: req.user.email } },
+            $set: { updatedAt: new Date() }
+          }
+        );
+        res.status(201).send({ ok: true, message: msg, result });
+      } catch (err) {
+        console.error('Send message error:', err.message);
+        res.status(500).send({ error: 'Failed to send message' });
+      }
+    });
+
+    // ===== Interview scheduling =====
+    app.post('/application/:appId/interviews/propose', verifyJWT, requireRole('company'), async (req, res) => {
+      try {
+        const appId = req.params.appId;
+        const { slots } = req.body;
+        if (!Array.isArray(slots) || slots.length === 0) return res.status(400).send({ error: 'slots array required' });
+
+        const appDoc = await getApplicationOr404(appId, res);
+        if (!appDoc) return;
+        if (appDoc.companyEmail !== req.user.email) return res.status(403).send({ error: 'Forbidden' });
+
+        const parsedSlots = slots
+          .map(s => new Date(s))
+          .filter(d => !Number.isNaN(d.getTime()))
+          .slice(0, 10);
+        if (parsedSlots.length === 0) return res.status(400).send({ error: 'No valid slots' });
+
+        const interview = {
+          id: new ObjectId().toString(),
+          proposedBy: req.user.email,
+          proposedAt: new Date(),
+          slots: parsedSlots,
+          status: 'proposed',
+          selectedSlot: null,
+          respondedAt: null,
+        };
+
+        const result = await applicationsCollection.updateOne(
+          { _id: new ObjectId(appId) },
+          {
+            $push: { interviews: interview, timeline: { at: new Date(), type: 'interview_proposed', byRole: 'company', byEmail: req.user.email } },
+            $set: { updatedAt: new Date() }
+          }
+        );
+        res.status(201).send({ ok: true, interview, result });
+      } catch (err) {
+        console.error('Propose interview error:', err.message);
+        res.status(500).send({ error: 'Failed to propose interview' });
+      }
+    });
+
+    app.post('/application/:appId/interviews/:interviewId/respond', verifyJWT, requireRole('seeker'), async (req, res) => {
+      try {
+        const appId = req.params.appId;
+        const interviewId = req.params.interviewId;
+        const { selectedSlot } = req.body;
+        if (!selectedSlot) return res.status(400).send({ error: 'selectedSlot required' });
+
+        const appDoc = await getApplicationOr404(appId, res);
+        if (!appDoc) return;
+        if (appDoc.userEmail !== req.user.email) return res.status(403).send({ error: 'Forbidden' });
+
+        const slotDate = new Date(selectedSlot);
+        if (Number.isNaN(slotDate.getTime())) return res.status(400).send({ error: 'Invalid selectedSlot' });
+
+        const interview = (appDoc.interviews || []).find(i => i.id === interviewId);
+        if (!interview) return res.status(404).send({ error: 'Interview not found' });
+
+        const allowed = (interview.slots || []).some(s => new Date(s).getTime() === slotDate.getTime());
+        if (!allowed) return res.status(400).send({ error: 'Selected slot not in proposed slots' });
+
+        const result = await applicationsCollection.updateOne(
+          { _id: new ObjectId(appId), 'interviews.id': interviewId },
+          {
+            $set: {
+              'interviews.$.status': 'accepted',
+              'interviews.$.selectedSlot': slotDate,
+              'interviews.$.respondedAt': new Date(),
+              updatedAt: new Date(),
+            },
+            $push: { timeline: { at: new Date(), type: 'interview_accepted', byRole: 'seeker', byEmail: req.user.email } }
+          }
+        );
+        res.send({ ok: true, result });
+      } catch (err) {
+        console.error('Respond interview error:', err.message);
+        res.status(500).send({ error: 'Failed to respond to interview' });
+      }
+    });
+
+    app.get('/application/:appId/interviews', verifyJWT, async (req, res) => {
+      try {
+        const appId = req.params.appId;
+        const appDoc = await getApplicationOr404(appId, res);
+        if (!appDoc) return;
+        if (!assertCanAccessApplication(appDoc, req.user)) return res.status(403).send({ error: 'Forbidden' });
+        res.send(appDoc.interviews || []);
+      } catch (err) {
+        console.error('Get interviews error:', err.message);
+        res.status(500).send({ error: 'Failed to fetch interviews' });
+      }
+    });
+
+    app.get('/application/:appId/interviews/:interviewId/ics', verifyJWT, async (req, res) => {
+      try {
+        const appId = req.params.appId;
+        const interviewId = req.params.interviewId;
+        const appDoc = await getApplicationOr404(appId, res);
+        if (!appDoc) return;
+        if (!assertCanAccessApplication(appDoc, req.user)) return res.status(403).send({ error: 'Forbidden' });
+
+        const interview = (appDoc.interviews || []).find(i => i.id === interviewId);
+        if (!interview || !interview.selectedSlot) return res.status(404).send({ error: 'Accepted interview not found' });
+
+        const start = new Date(interview.selectedSlot);
+        const end = new Date(start.getTime() + 30 * 60 * 1000);
+        const pad = (n) => String(n).padStart(2, '0');
+        const toICSDate = (d) =>
+          `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}Z`;
+
+        const uid = `${interviewId}@mern-job-portal`;
+        const ics = [
+          'BEGIN:VCALENDAR',
+          'VERSION:2.0',
+          'PRODID:-//MERN Job Portal//EN',
+          'CALSCALE:GREGORIAN',
+          'METHOD:PUBLISH',
+          'BEGIN:VEVENT',
+          `UID:${uid}`,
+          `DTSTAMP:${toICSDate(new Date())}`,
+          `DTSTART:${toICSDate(start)}`,
+          `DTEND:${toICSDate(end)}`,
+          `SUMMARY:Interview - ${appDoc.jobTitle}`,
+          `DESCRIPTION:Interview scheduled via MERN Job Portal\\nCompany: ${appDoc.companyName}\\nCandidate: ${appDoc.userEmail}`,
+          'END:VEVENT',
+          'END:VCALENDAR',
+        ].join('\r\n');
+
+        res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename=\"interview-${interviewId}.ics\"`);
+        res.send(ics);
+      } catch (err) {
+        console.error('ICS error:', err.message);
+        res.status(500).send({ error: 'Failed to generate ICS' });
+      }
+    });
+
+    // ===== Referral marketplace =====
+    app.post('/referrals/request', verifyJWT, requireRole('seeker'), async (req, res) => {
+      try {
+        const { jobId, message } = req.body || {};
+        if (!jobId) return res.status(400).send({ error: 'jobId required' });
+        const job = await jobsCollections.findOne({ _id: new ObjectId(jobId) });
+        if (!job) return res.status(404).send({ error: 'Job not found' });
+
+        const referral = {
+          jobId: new ObjectId(jobId),
+          jobTitle: job.jobTitle,
+          companyEmail: job.postedBy,
+          seekerEmail: req.user.email,
+          status: 'open',
+          messages: message ? [{ id: new ObjectId().toString(), senderEmail: req.user.email, senderRole: 'seeker', text: String(message).trim(), at: new Date() }] : [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        const result = await referralRequestsCollection.insertOne(referral);
+        res.status(201).send({ insertedId: result.insertedId });
+      } catch (err) {
+        res.status(500).send({ error: 'Failed to create referral request' });
+      }
+    });
+
+    app.get('/referrals/incoming', verifyJWT, requireRole('company'), async (req, res) => {
+      try {
+        const rows = await referralRequestsCollection.find({ companyEmail: req.user.email }).sort({ createdAt: -1 }).toArray();
+        res.send(rows);
+      } catch {
+        res.status(500).send({ error: 'Failed to fetch referrals' });
+      }
+    });
+
+    app.get('/referrals/outgoing', verifyJWT, requireRole('seeker'), async (req, res) => {
+      try {
+        const rows = await referralRequestsCollection.find({ seekerEmail: req.user.email }).sort({ createdAt: -1 }).toArray();
+        res.send(rows);
+      } catch {
+        res.status(500).send({ error: 'Failed to fetch referrals' });
+      }
+    });
+
+    app.patch('/referrals/:id/status', verifyJWT, requireRole('company'), async (req, res) => {
+      try {
+        const id = req.params.id;
+        const { status } = req.body || {};
+        const valid = ['open', 'accepted', 'rejected', 'referred', 'closed'];
+        if (!valid.includes(status)) return res.status(400).send({ error: 'Invalid status' });
+        const referral = await referralRequestsCollection.findOne({ _id: new ObjectId(id) });
+        if (!referral) return res.status(404).send({ error: 'Referral not found' });
+        if (referral.companyEmail !== req.user.email) return res.status(403).send({ error: 'Forbidden' });
+        await referralRequestsCollection.updateOne({ _id: new ObjectId(id) }, { $set: { status, updatedAt: new Date() } });
+        res.send({ ok: true });
+      } catch {
+        res.status(500).send({ error: 'Failed to update referral status' });
+      }
+    });
+
+    app.post('/referrals/:id/messages', verifyJWT, async (req, res) => {
+      try {
+        const id = req.params.id;
+        const { text } = req.body || {};
+        if (!text || !String(text).trim()) return res.status(400).send({ error: 'text required' });
+        const referral = await referralRequestsCollection.findOne({ _id: new ObjectId(id) });
+        if (!referral) return res.status(404).send({ error: 'Referral not found' });
+        const isCompany = req.user.role === 'company' && referral.companyEmail === req.user.email;
+        const isSeeker = req.user.role === 'seeker' && referral.seekerEmail === req.user.email;
+        if (!isCompany && !isSeeker) return res.status(403).send({ error: 'Forbidden' });
+        const msg = { id: new ObjectId().toString(), senderEmail: req.user.email, senderRole: req.user.role, text: String(text).trim(), at: new Date() };
+        await referralRequestsCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $push: { messages: msg }, $set: { updatedAt: new Date() } }
+        );
+        res.status(201).send({ ok: true, message: msg });
+      } catch {
+        res.status(500).send({ error: 'Failed to send referral message' });
       }
     });
 
@@ -386,12 +1005,15 @@ async function run() {
     });
 
     // User Profile endpoints
-    app.get('/user-profile/:email', async (req, res) => {
+    app.get('/user-profile/:email', verifyJWT, requireRole('seeker'), async (req, res) => {
       try {
         const email = req.params.email;
+        if (email !== req.user.email) return res.status(403).send({ error: 'Forbidden' });
         const user = await usersCollection.findOne({ email });
         if (user) {
-          res.send(user);
+          // never expose password hash to client
+          const { password, ...safe } = user;
+          res.send(safe);
         } else {
           res.status(404).send({ error: 'User not found' });
         }
@@ -403,10 +1025,21 @@ async function run() {
     app.put('/user-profile/:email', verifyJWT, async (req, res) => {
       try {
         const email = req.params.email;
-        const update = req.body;
+        if (!req.user || req.user.role !== 'seeker' || req.user.email !== email) {
+          return res.status(403).send({ error: 'Forbidden' });
+        }
+        const update = req.body || {};
+        const { out: studentFields, errors } = parseStudentProfileFields(update);
+        if (errors.length > 0) return res.status(400).send({ error: errors[0], errors });
+        const safeUpdate = {
+          ...update,
+          ...studentFields,
+        };
+        delete safeUpdate.password;
+        delete safeUpdate._id;
         const result = await usersCollection.updateOne(
           { email },
-          { $set: update },
+          { $set: safeUpdate },
           { upsert: true }
         );
         res.send({ success: true, message: 'Profile updated' });
@@ -416,12 +1049,14 @@ async function run() {
     });
 
     // Company Profile endpoints
-    app.get('/company-profile/:email', async (req, res) => {
+    app.get('/company-profile/:email', verifyJWT, requireRole('company'), async (req, res) => {
       try {
         const email = req.params.email;
+        if (email !== req.user.email) return res.status(403).send({ error: 'Forbidden' });
         const company = await companiesCollection.findOne({ email });
         if (company) {
-          res.send(company);
+          const { password, ...safe } = company;
+          res.send(safe);
         } else {
           res.status(404).send({ error: 'Company not found' });
         }
@@ -433,6 +1068,9 @@ async function run() {
     app.put('/company-profile/:email', verifyJWT, async (req, res) => {
       try {
         const email = req.params.email;
+        if (!req.user || req.user.role !== 'company' || req.user.email !== email) {
+          return res.status(403).send({ error: 'Forbidden' });
+        }
         const update = req.body;
         const result = await companiesCollection.updateOne(
           { email },
@@ -498,6 +1136,20 @@ async function run() {
       }
     });
 
+    // Basic admin moderation endpoint (email containing "admin")
+    app.get('/admin/reported-jobs', verifyJWT, async (req, res) => {
+      try {
+        if (!String(req.user?.email || '').includes('admin')) return res.status(403).send({ error: 'Forbidden' });
+        const reports = await jobReportsCollection.find({}).sort({ createdAt: -1 }).toArray();
+        const jobIds = [...new Set(reports.map((r) => r.jobId).filter(Boolean))];
+        const jobs = await jobsCollections.find({ _id: { $in: jobIds } }).toArray();
+        const jobMap = new Map(jobs.map((j) => [String(j._id), j]));
+        res.send(reports.map((r) => ({ ...r, job: jobMap.get(String(r.jobId)) || null })));
+      } catch {
+        res.status(500).send({ error: 'Failed to fetch reports' });
+      }
+    });
+
     // (debug-users route removed)
 
     // Delete job
@@ -531,6 +1183,10 @@ async function run() {
 run().catch(console.dir);
 
 // Start Server
-app.listen(port, () => {
-  console.log(`🚀 Server running on port ${port}`);
-});
+if (!process.env.VERCEL) {
+  app.listen(port, () => {
+    console.log(`🚀 Server running on port ${port}`);
+  });
+}
+
+module.exports = app;

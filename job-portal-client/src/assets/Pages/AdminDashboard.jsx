@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
+import { apiUrl } from '../../utils/api';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -12,6 +13,7 @@ const AdminDashboard = () => {
     acceptedApplications: 0,
   });
   const [isAdmin, setIsAdmin] = useState(false);
+  const [reportedJobs, setReportedJobs] = useState([]);
 
   useEffect(() => {
     // Check if user is admin (for simplicity, we'll check if email contains 'admin')
@@ -25,18 +27,32 @@ const AdminDashboard = () => {
     } else {
       setIsAdmin(true);
       fetchStats();
+      fetchReports();
     }
   }, [navigate]);
 
   const fetchStats = async () => {
     try {
-      const res = await fetch('http://localhost:3000/admin-stats');
+      const res = await fetch(apiUrl('/admin-stats'));
       const data = await res.json();
       if (res.ok) {
         setStats(data);
       }
     } catch (err) {
       console.error('Error fetching stats:', err);
+    }
+  };
+
+  const fetchReports = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(apiUrl('/admin/reported-jobs'), {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) setReportedJobs(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Error fetching reports:', err);
     }
   };
 
@@ -188,6 +204,24 @@ const AdminDashboard = () => {
             💼 Manage Jobs
           </button>
         </div>
+      </div>
+
+      {/* Last Updated */}
+      <div className="mt-8 bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+        <h3 className="text-xl font-bold text-gray-800 mb-4">🚨 Scam Shield Reports</h3>
+        {reportedJobs.length === 0 ? (
+          <p className="text-gray-600">No job reports yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {reportedJobs.slice(0, 10).map((r) => (
+              <div key={r._id} className="p-4 border rounded-lg bg-red-50">
+                <p className="font-semibold text-gray-800">{r.job?.jobTitle || 'Unknown job'}</p>
+                <p className="text-sm text-gray-700">Reporter: {r.reporterEmail}</p>
+                <p className="text-sm text-gray-700">Reason: {r.reason}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Last Updated */}

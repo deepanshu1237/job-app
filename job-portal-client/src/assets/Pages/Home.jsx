@@ -4,21 +4,39 @@ import Card from "../../components/Card";
 import Jobs from "./Jobs";
 import Sidebar from "../../sidebar/Sidebar";
 import Newsletter from "../../components/Newsletter";
+import { computeEligibility } from "../../utils/eligibility";
+import { apiUrl } from "../../utils/api";
 
 const Home = () => {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [seekerProfile, setSeekerProfile] = useState(null);
   const[currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
 
   useEffect(() => {
     setIsLoading(true);
-    fetch("http://localhost:3000/all-jobs").then(res => res.json()).then(data => {
+    fetch(apiUrl("/all-jobs")).then(res => res.json()).then(data => {
       setJobs(data);
       setIsLoading(false)
     })
   }, [])
+
+  useEffect(() => {
+    const userEmail = localStorage.getItem('userEmail');
+    const token = localStorage.getItem('token');
+    if (!userEmail || !token) {
+      setSeekerProfile(null);
+      return;
+    }
+    fetch(apiUrl(`/user-profile/${userEmail}`), {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(res => res.json())
+      .then(data => setSeekerProfile(data))
+      .catch(() => setSeekerProfile(null));
+  }, []);
 
   // console.log(jobs)
 
@@ -111,7 +129,10 @@ const prevPage = () => {
     const pageSlice = filteredJobs.slice(startIndex, endIndex);
 
     return {
-      items: pageSlice.map((data, i) => <Card key={i} data={data} />),
+      items: pageSlice.map((data, i) => {
+        const eligibility = computeEligibility({ job: data, seekerProfile });
+        return <Card key={i} data={data} eligibility={eligibility} />;
+      }),
       total,
     };
   };

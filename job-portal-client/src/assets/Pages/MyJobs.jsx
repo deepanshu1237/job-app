@@ -1,22 +1,38 @@
 import React, { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { apiUrl } from '../../utils/api';
 
 const MyJobs = () => {
     const [jobs, setJobs] = useState([]);
     const [searchText, setSearchText] = useState("");
     const [isLoading, setIsLoading] = useState(true);
+    const navigate = useNavigate();
 
 //Set Current Page
 const [currentPage, setCurrentPage] = useState(1);
 const itemsPerPage = 4;
 
     useEffect(() => {
-        setIsLoading(true)
-        fetch(`http://localhost:3000/myJobs/lakshay22dhoundiyal@gmail.com`).then(res => res.json()).then(data => {
-          setJobs(data);
+        const companyEmail = localStorage.getItem('companyEmail');
+        if (!companyEmail) {
+          setJobs([]);
           setIsLoading(false);
-        });
-    }, [searchText]);
+          navigate('/login');
+          return;
+        }
+
+        setIsLoading(true);
+        fetch(apiUrl(`/myJobs/${encodeURIComponent(companyEmail)}`))
+          .then(res => res.json())
+          .then(data => {
+            setJobs(Array.isArray(data) ? data : []);
+            setIsLoading(false);
+          })
+          .catch(() => {
+            setJobs([]);
+            setIsLoading(false);
+          });
+    }, [searchText, navigate]);
 
     //Pagination
 
@@ -46,7 +62,7 @@ const itemsPerPage = 4;
 
     const handleDelete = (id) => {
       // console.log(id);
-      fetch(`http://localhost:3000/job/${id}`, {
+      fetch(apiUrl(`/job/${id}`), {
        method: "DELETE"
       })
       .then((res) => res.json())

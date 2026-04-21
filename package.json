@@ -1,0 +1,20 @@
+{
+  "name": "mern-job-portal-workspace",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Workspace scripts for MERN_Job_Portal_Website (tests/validation).",
+  "scripts": {
+    "dev": "concurrently -n server,client -c cyan,magenta \"npm:start:server\" \"npm:start:client\"",
+    "start:server": "npm start --prefix job-portal-server",
+    "start:client": "npm run dev --prefix job-portal-client -- --host",
+    "test:features": "node test-all-features.js",
+    "validate:db": "node validate-mongodb.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "mongodb": "^6.7.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

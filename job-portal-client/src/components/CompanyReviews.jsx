@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
+import { apiUrl } from '../utils/api';
 
 const CompanyReviews = ({ companyEmail }) => {
   const [reviews, setReviews] = useState([]);
@@ -13,7 +14,7 @@ const CompanyReviews = ({ companyEmail }) => {
 
   const fetchReviews = async () => {
     try {
-      const res = await fetch(`http://localhost:3000/company-reviews/${companyEmail}`);
+      const res = await fetch(apiUrl(`/company-reviews/${companyEmail}`));
       const data = await res.json();
       if (res.ok) {
         setReviews(data);
@@ -36,7 +37,7 @@ const CompanyReviews = ({ companyEmail }) => {
 
     setIsPosting(true);
     try {
-      const res = await fetch('http://localhost:3000/company-reviews', {
+      const res = await fetch(apiUrl('/company-reviews'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

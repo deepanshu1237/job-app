@@ -2,7 +2,7 @@ import React from 'react'
 import { Link } from 'react-router-dom';
 import { FiCalendar, FiClock, FiDollarSign, FiMapPin } from 'react-icons/fi';
 
-const Card = ({data}) => {
+const Card = ({data, eligibility}) => {
 const {_id, companyName, jobTitle, companyLogo, minPrice, maxPrice, salaryType, jobLocation, employmentType, postingDate, description} = data;
 
   return (
@@ -15,6 +15,18 @@ const {_id, companyName, jobTitle, companyLogo, minPrice, maxPrice, salaryType, 
         <div className="flex-grow">
           <p className="text-sm text-blue font-semibold uppercase">{companyName}</p>
           <h3 className="text-lg font-bold text-gray-800 hover:text-blue transition">{jobTitle}</h3>
+          {eligibility?.eligible !== null && (
+            <div className="mt-2">
+              {eligibility.eligible ? (
+                <span className="inline-block text-xs font-bold px-3 py-1 rounded-full bg-green-100 text-green-700">Eligible</span>
+              ) : (
+                <span className="inline-block text-xs font-bold px-3 py-1 rounded-full bg-red-100 text-red-700">Not eligible</span>
+              )}
+              {typeof eligibility?.skillMatchPercent === 'number' && (
+                <span className="ml-2 text-xs text-gray-600">Skill match: {eligibility.skillMatchPercent}%</span>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

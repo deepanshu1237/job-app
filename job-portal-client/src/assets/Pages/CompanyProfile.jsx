@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
+import { apiUrl } from '../../utils/api';
 
 const CompanyProfile = () => {
   const navigate = useNavigate();
@@ -34,7 +35,7 @@ const CompanyProfile = () => {
 
   const fetchProfile = async () => {
     try {
-      const res = await fetch(`http://localhost:3000/company-profile/${email}`, {
+      const res = await fetch(apiUrl(`/company-profile/${email}`), {
         method: 'GET',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -49,7 +50,7 @@ const CompanyProfile = () => {
 
   const fetchStats = async () => {
     try {
-      const res = await fetch(`http://localhost:3000/stats/company/${email}`);
+      const res = await fetch(apiUrl(`/stats/company/${email}`));
       const data = await res.json();
       if (res.ok) {
         setStats(data);
@@ -66,7 +67,7 @@ const CompanyProfile = () => {
 
   const handleSaveProfile = async () => {
     try {
-      const res = await fetch(`http://localhost:3000/company-profile/${email}`, {
+      const res = await fetch(apiUrl(`/company-profile/${email}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

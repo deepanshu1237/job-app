@@ -1,12 +1,21 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
+import { apiUrl } from '../utils/api';
 
 const SeekerSignup = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [mobile, setMobile] = useState('');
   const [password, setPassword] = useState('');
+  const [skills, setSkills] = useState('');
+  const [tenthPercentage, setTenthPercentage] = useState('');
+  const [twelfthPercentage, setTwelfthPercentage] = useState('');
+  const [cgpa, setCgpa] = useState('');
+  const [degree, setDegree] = useState('');
+  const [branch, setBranch] = useState('');
+  const [college, setCollege] = useState('');
+  const [passoutYear, setPassoutYear] = useState('');
   const navigate = useNavigate();
 
   const handleSignup = async (e) => {
@@ -15,11 +24,41 @@ const SeekerSignup = () => {
       Swal.fire({ icon: 'error', title: 'Error', text: 'Please enter all fields' });
       return;
     }
+    const tenth = tenthPercentage === '' ? null : Number(tenthPercentage);
+    const twelfth = twelfthPercentage === '' ? null : Number(twelfthPercentage);
+    const cgpaNum = cgpa === '' ? null : Number(cgpa);
+    const yearNum = passoutYear === '' ? null : Number(passoutYear);
+    if ((tenth !== null && (tenth < 0 || tenth > 100)) || (twelfth !== null && (twelfth < 0 || twelfth > 100))) {
+      Swal.fire({ icon: 'error', title: 'Invalid marks', text: '10th and 12th percentages must be between 0 and 100.' });
+      return;
+    }
+    if (cgpaNum !== null && (cgpaNum < 0 || cgpaNum > 10)) {
+      Swal.fire({ icon: 'error', title: 'Invalid CGPA', text: 'CGPA must be between 0 and 10.' });
+      return;
+    }
+    const currentYear = new Date().getFullYear();
+    if (yearNum !== null && (yearNum < 1990 || yearNum > currentYear + 10)) {
+      Swal.fire({ icon: 'error', title: 'Invalid passout year', text: `Passout year must be between 1990 and ${currentYear + 10}.` });
+      return;
+    }
     try {
-      const res = await fetch('http://localhost:3000/signup', {
+      const res = await fetch(apiUrl('/signup'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, mobile, password }),
+        body: JSON.stringify({
+          name,
+          email,
+          mobile,
+          password,
+          skills: skills.split(',').map((s) => s.trim()).filter(Boolean),
+          tenthPercentage,
+          twelfthPercentage,
+          cgpa,
+          degree,
+          branch,
+          college,
+          passoutYear,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to signup');
@@ -69,6 +108,73 @@ const SeekerSignup = () => {
             value={password} 
             onChange={(e)=>setPassword(e.target.value)}
             required 
+          />
+          <input
+            className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-purple-600 focus:outline-none transition"
+            placeholder="🧠 Skills (comma separated)"
+            value={skills}
+            onChange={(e)=>setSkills(e.target.value)}
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              max="100"
+              className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-purple-600 focus:outline-none transition"
+              placeholder="10th %"
+              value={tenthPercentage}
+              onChange={(e)=>setTenthPercentage(e.target.value)}
+            />
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              max="100"
+              className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-purple-600 focus:outline-none transition"
+              placeholder="12th %"
+              value={twelfthPercentage}
+              onChange={(e)=>setTwelfthPercentage(e.target.value)}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              max="10"
+              className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-purple-600 focus:outline-none transition"
+              placeholder="CGPA"
+              value={cgpa}
+              onChange={(e)=>setCgpa(e.target.value)}
+            />
+            <input
+              type="number"
+              min="1990"
+              max="2100"
+              className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-purple-600 focus:outline-none transition"
+              placeholder="Passout Year"
+              value={passoutYear}
+              onChange={(e)=>setPassoutYear(e.target.value)}
+            />
+          </div>
+          <input
+            className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-purple-600 focus:outline-none transition"
+            placeholder="🎓 Degree (B.Tech, BCA...)"
+            value={degree}
+            onChange={(e)=>setDegree(e.target.value)}
+          />
+          <input
+            className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-purple-600 focus:outline-none transition"
+            placeholder="📚 Branch / Stream"
+            value={branch}
+            onChange={(e)=>setBranch(e.target.value)}
+          />
+          <input
+            className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-purple-600 focus:outline-none transition"
+            placeholder="🏫 College Name"
+            value={college}
+            onChange={(e)=>setCollege(e.target.value)}
           />
           <button className="w-full bg-purple-600 text-white p-3 rounded-lg font-bold text-lg hover:opacity-90 transition" type="submit">
             Sign Up as Seeker
