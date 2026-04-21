@@ -22,7 +22,8 @@ app.use(
 );
 
 // Serve uploaded resumes
-const uploadsDir = path.join(__dirname, 'uploads');
+// Vercel serverless filesystem is read-only except /tmp.
+const uploadsDir = process.env.VERCEL ? '/tmp/uploads' : path.join(__dirname, 'uploads');
 fs.mkdirSync(uploadsDir, { recursive: true });
 app.use('/uploads', express.static(uploadsDir));
 
