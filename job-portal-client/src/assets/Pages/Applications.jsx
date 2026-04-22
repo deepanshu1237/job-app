@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import PageHeader from '../../components/PageHeader';
 import { apiUrl } from '../../utils/api';
 
 const Applications = () => {
@@ -113,8 +112,6 @@ const Applications = () => {
 
   return (
     <div className="max-w-screen-2xl container mx-auto xl:px-24 px-4 bg-gray-50 min-h-screen">
-      <PageHeader title="My Applications" path="Applications" />
-      
       <div className="py-16">
         {referrals.length > 0 && (
           <div className="mb-6 bg-indigo-50 border border-indigo-200 rounded-lg p-4">

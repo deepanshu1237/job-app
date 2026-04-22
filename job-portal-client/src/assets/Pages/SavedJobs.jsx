@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import PageHeader from '../../components/PageHeader';
 import Swal from 'sweetalert2';
 import { apiUrl } from '../../utils/api';
 
@@ -44,8 +43,6 @@ const SavedJobs = () => {
 
   return (
     <div className="max-w-screen-2xl container mx-auto xl:px-24 px-4 bg-gray-50 min-h-screen">
-      <PageHeader title="Saved Jobs" path="Saved Jobs" />
-      
       <div className="py-16">
         {isLoading ? (
           <div className="flex justify-center items-center h-64">
