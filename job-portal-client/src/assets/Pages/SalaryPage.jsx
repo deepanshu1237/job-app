@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react'
-import PageHeader from '../../components/PageHeader'
 
 const SalaryPage = () => {
   const [searchText, setSearchText] = useState("");
@@ -18,8 +17,7 @@ const SalaryPage = () => {
 
   return (
     <div className='max-w-screen-2xl container mx-auto xl:px-24 px-4'>
-        <PageHeader title={"Estimate Salary"} path={"Salary"}/>
-    
+
     <div className="mt-5">
         <div className="search-box p-2 text-center mb-2">
             <input
