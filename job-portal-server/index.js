@@ -228,10 +228,9 @@ async function run() {
       },
     });
 
-    // Post Job (protected) - company must be authenticated
-    app.post("/post-job", verifyJWT, async (req, res) => {
+    // Post Job (protected) - only company can post
+    app.post("/post-job", verifyJWT, requireRole('company'), async (req, res) => {
       try {
-        if (!req.user || req.user.role !== 'company') return res.status(403).send({ error: 'Forbidden' });
         const body = req.body || {};
         if (!body.jobTitle || !body.companyName || !body.jobLocation || !body.employmentType || !body.description) {
           return res.status(400).send({ error: 'Missing required job fields' });
