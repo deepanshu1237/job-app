@@ -20,6 +20,7 @@ import UserProfile from "../assets/Pages/UserProfile";
 import CompanyProfile from "../assets/Pages/CompanyProfile";
 import AdminDashboard from "../assets/Pages/AdminDashboard";
 import { apiUrl } from "../utils/api";
+import CompanyRoute from "../components/CompanyRoute";
 
 const router = createBrowserRouter([
     {
@@ -29,12 +30,12 @@ const router = createBrowserRouter([
         {path: "/", element: <Home/>},
         {
           path: "/post-job",
-          element: <CreateJob/>
+          element: <CompanyRoute><CreateJob/></CompanyRoute>
         },
         
         {
           path: "/my-job",
-          element: <MyJobs/>
+          element: <CompanyRoute><MyJobs/></CompanyRoute>
         },
         {
           path: "/salary",
@@ -59,7 +60,7 @@ const router = createBrowserRouter([
         },
         {
           path: "/applicants",
-          element: <Applicants/>
+          element: <CompanyRoute><Applicants/></CompanyRoute>
         },
         {
           path: "/profile",
@@ -67,7 +68,7 @@ const router = createBrowserRouter([
         },
         {
           path: "/company-profile",
-          element: <CompanyProfile/>
+          element: <CompanyRoute><CompanyProfile/></CompanyRoute>
         },
         {
           path: "/admin",
