@@ -36,8 +36,8 @@ const Navbar = ({ theme = 'light', onToggleTheme }) => {
     const profileLabel = isCompany ? 'Company Profile' : 'My Profile';
 
   return (
-    <header className='max-w-screen container mx-auto xl:px-24 px-4 bg-white'>
-        <nav className="flex justify-between items-center py-6">
+    <header className='w-full bg-white'>
+        <nav className="max-w-screen-2xl mx-auto xl:px-24 px-4 flex justify-between items-center py-4">
             <Link to="/" className="flex items-center gap-2 text-2xl text-black">
                 <svg className="" 
                 width="29" 
@@ -59,7 +59,7 @@ const Navbar = ({ theme = 'light', onToggleTheme }) => {
             </Link>
 
             {/* {NAV ITEMS FOR LARGE DEVICES} */}
-            <ul className="hidden md:flex gap-12">
+            <ul className="hidden md:flex items-center gap-6 xl:gap-8">
                 {
                     navItems.map(({path, title}) => (
                         <li key={path} className="text-base text-primary">
@@ -75,23 +75,23 @@ const Navbar = ({ theme = 'light', onToggleTheme }) => {
             </ul>
 
             {/* SIGNUP AND LOGIN BUTTON */}
-            <div className="text-base text-primary font-medium hidden lg:flex items-center gap-3">
+            <div className="text-base text-primary font-medium hidden lg:flex items-center gap-2 xl:gap-3">
                 <button
                   onClick={onToggleTheme}
-                  className='py-2 px-3 border rounded-lg hover:bg-gray-100 transition min-w-[96px]'
+                  className='py-2 px-3 border rounded-lg hover:bg-gray-100 transition min-w-[96px] whitespace-nowrap'
                   title="Toggle theme"
                 >
                   {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
                 </button>
                 {isCompany || isSeeker ? (
                     <>
-                        <Link to={profilePath} className='py-2 px-3 border rounded-lg hover:bg-gray-100 transition'>
+                        <Link to={profilePath} className='py-2 px-3 border rounded-lg hover:bg-gray-100 transition whitespace-nowrap'>
                             {profileLabel}
                         </Link>
-                        <span className="px-3 py-2 rounded-lg bg-gray-100 text-gray-700 font-semibold">
+                        <span className="px-3 py-2 rounded-lg bg-gray-100 text-gray-700 font-semibold whitespace-nowrap">
                             {roleLabel}
                         </span>
-                        <Link to={switchPath} className='py-2 px-3 border rounded-lg hover:bg-gray-100 transition'>
+                        <Link to={switchPath} className='py-2 px-3 border rounded-lg hover:bg-gray-100 transition whitespace-nowrap'>
                             {switchLabel}
                         </Link>
                         <LogoutButton />
@@ -115,7 +115,8 @@ const Navbar = ({ theme = 'light', onToggleTheme }) => {
         </nav>
 
         {/* NAV ITEMS FOR MOBILE */}
-        <div className={`px-4 bg-black py-5 rounded-sm ${isMenuOpen ? "" : "hidden"}`}>
+        <div className={`max-w-screen-2xl mx-auto xl:px-24 px-4 pb-4 ${isMenuOpen ? "" : "hidden"}`}>
+            <div className="bg-black py-4 rounded-lg">
             <ul className="">
             {navItems.map(({path, title}) => (
                         <li key={path} className="text-base text-white first:text-white py-1">
@@ -154,6 +155,7 @@ const Navbar = ({ theme = 'light', onToggleTheme }) => {
                     </>
                 )}
             </ul>
+            </div>
         </div>
     </header>
   )

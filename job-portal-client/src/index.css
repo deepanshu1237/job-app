@@ -69,7 +69,24 @@ html.theme-dark .text-gray-400 {
 html.theme-dark .border,
 html.theme-dark .border-gray-200,
 html.theme-dark .border-gray-300,
+html.theme-dark .border-gray-600,
 html.theme-dark .border-blueGray-100 {
+  border-color: #374151 !important;
+}
+
+html.theme-dark .border-b,
+html.theme-dark .border-t,
+html.theme-dark .border-l,
+html.theme-dark .border-r {
+  border-color: #374151 !important;
+}
+
+html.theme-dark hr {
+  border-color: #374151 !important;
+}
+
+html.theme-dark .divide-y > :not([hidden]) ~ :not([hidden]),
+html.theme-dark .divide-x > :not([hidden]) ~ :not([hidden]) {
   border-color: #374151 !important;
 }
 
