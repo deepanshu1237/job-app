@@ -52,7 +52,9 @@ html.theme-dark .bg-yellow-50 {
 }
 
 html.theme-dark .text-black,
+html.theme-dark .text-black\/70,
 html.theme-dark .text-primary,
+html.theme-dark .text-gray-900,
 html.theme-dark .text-gray-800,
 html.theme-dark .text-gray-700,
 html.theme-dark .text-gray-600,
@@ -64,6 +66,21 @@ html.theme-dark .text-blueGray-500 {
 
 html.theme-dark .text-gray-400 {
   color: #cbd5e1 !important;
+}
+
+html.theme-dark .bg-\[\#FAFAFA\] {
+  background-color: #0f172a !important;
+}
+
+/* Dark-mode gradient helpers (used on Home background) */
+html.theme-dark .from-gray-50 {
+  --tw-gradient-from: #0b1220 !important;
+  --tw-gradient-to: rgb(11 18 32 / 0) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+html.theme-dark .to-white {
+  --tw-gradient-to: #0b1220 !important;
 }
 
 html.theme-dark .border,

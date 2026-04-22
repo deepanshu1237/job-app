@@ -17,7 +17,7 @@ const SalaryPage = () => {
   console.log(searchText)
 
   return (
-    <div className='max-w-screen container mx-auto xl:px-24 px-4'>
+    <div className='max-w-screen-2xl container mx-auto xl:px-24 px-4'>
         <PageHeader title={"Estimate Salary"} path={"Salary"}/>
     
     <div className="mt-5">
@@ -27,8 +27,7 @@ const SalaryPage = () => {
                 id="search"
                 name="search"
                 placeholder="Type Here to Search"
-                className="py-2 pl-3 border focus-within:ring-indigo-600
-                lg:w-6/12 mb-4 w-full"
+                className="py-2 pl-3 border rounded-lg focus-within:ring-indigo-600 lg:w-6/12 mb-4 w-full"
                 onChange={e => setSearchText(e.target.value)}
                 style={{ // Inline style to set focus ring color
                   outlineColor: '#4F46E5', // Replace with your desired blue color
@@ -44,8 +43,8 @@ const SalaryPage = () => {
     <div className="grid lg:grid-cols-3 sm:grid-cols-2 grid-cols-1 gap-12 my-12 items-center">
       {
         salary.map((data) => (
-          <div key={data.id} className='shadow px-4 py-8'>
-            <h4 className="font-semibold text-xl">{data.title}</h4>
+          <div key={data.id} className='bg-white border border-gray-200 rounded-xl shadow px-5 py-8'>
+            <h4 className="font-semibold text-xl text-gray-800">{data.title}</h4>
             <p className="my-2 font-medium text-blue text-lg">{data.salary}</p>
             <div className="flex flex-wrap gap-4">
               <a href="/" className="font-bold">{data.status}</a>
