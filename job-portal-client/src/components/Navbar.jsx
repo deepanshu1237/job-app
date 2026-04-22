@@ -29,9 +29,6 @@ const Navbar = ({ theme = 'light', onToggleTheme }) => {
     } else {
         navItems.push({path: "/my-job", title: "My Jobs"});
     }
-    const roleLabel = isCompany ? 'Company' : isSeeker ? 'Seeker' : null;
-    const switchPath = isCompany ? '/login/seeker' : '/login/company';
-    const switchLabel = isCompany ? 'Switch to Seeker' : 'Switch to Company';
     const profilePath = isCompany ? '/company-profile' : '/profile';
     const profileLabel = isCompany ? 'Company Profile' : 'My Profile';
 
@@ -78,21 +75,16 @@ const Navbar = ({ theme = 'light', onToggleTheme }) => {
             <div className="text-base text-primary font-medium hidden lg:flex items-center gap-2 xl:gap-3">
                 <button
                   onClick={onToggleTheme}
-                  className='py-2 px-3 border rounded-lg hover:bg-gray-100 transition min-w-[96px] whitespace-nowrap'
+                  className='py-2 px-3 border rounded-lg hover:bg-gray-100 transition whitespace-nowrap flex items-center gap-2'
                   title="Toggle theme"
                 >
-                  {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+                  <span className="text-base leading-none">{theme === 'dark' ? '☀️' : '🌙'}</span>
+                  <span className="hidden xl:inline">{theme === 'dark' ? 'Light' : 'Dark'}</span>
                 </button>
                 {isCompany || isSeeker ? (
                     <>
                         <Link to={profilePath} className='py-2 px-3 border rounded-lg hover:bg-gray-100 transition whitespace-nowrap'>
                             {profileLabel}
-                        </Link>
-                        <span className="px-3 py-2 rounded-lg bg-gray-100 text-gray-700 font-semibold whitespace-nowrap">
-                            {roleLabel}
-                        </span>
-                        <Link to={switchPath} className='py-2 px-3 border rounded-lg hover:bg-gray-100 transition whitespace-nowrap'>
-                            {switchLabel}
                         </Link>
                         <LogoutButton />
                     </>
@@ -139,12 +131,6 @@ const Navbar = ({ theme = 'light', onToggleTheme }) => {
                             <button onClick={onToggleTheme}>
                               {theme === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode'}
                             </button>
-                        </li>
-                        <li className="text-white py-2 border-t border-gray-600 mt-2">
-                            <span className="font-semibold">{roleLabel}</span>
-                        </li>
-                        <li className="text-white py-1">
-                            <Link to={switchPath}>{switchLabel}</Link>
                         </li>
                         <li className="text-white py-1"><LogoutButton className="w-full" /></li>
                     </>
