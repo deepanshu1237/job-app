@@ -9,12 +9,27 @@ const multer = require('multer');
 
 // Middleware
 app.use(express.json());
+
+const configuredOrigins = (process.env.CORS_ORIGINS || "http://localhost:5173,http://localhost:5174")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+function isAllowedOrigin(origin = "") {
+  if (!origin) return true; // allow non-browser clients/tools
+  if (configuredOrigins.includes(origin)) return true;
+
+  // Allow Vercel preview/production domains for this project account.
+  // Example: https://job-app-jpib-xxxx-deepanshu1237s-projects.vercel.app
+  return /^https:\/\/([a-z0-9-]+\.)*vercel\.app$/i.test(origin);
+}
+
 app.use(
   cors({
-    origin: (process.env.CORS_ORIGINS || "http://localhost:5173,http://localhost:5174")
-      .split(",")
-      .map((origin) => origin.trim())
-      .filter(Boolean),
+    origin: (origin, callback) => {
+      if (isAllowedOrigin(origin)) return callback(null, true);
+      return callback(new Error(`CORS blocked for origin: ${origin || "unknown"}`));
+    },
     methods: ["GET","POST","PUT","PATCH","DELETE","OPTIONS"],
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization"],
